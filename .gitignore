@@ -1,0 +1,9 @@
+node_modules/
+.netlify/
+.env*
+!.env.example
+*.dpapi
+*.sqlite*
+work/
+launch-url.txt
+dist/

@@ -1,51 +1,48 @@
-# ReplyAssist Cloud Review
+# ReplyAssist — automatic replies and 24/7 owner notifications
 
-This is a Netlify adaptation of the uploaded review build, not a live response service.
-Automatic customer replies, Gmail sends and live activation remain blocked. Optional scheduled draft-only checks are available. A separate manual flow allows one explicitly approved reply to an older conversation. The grounded AI pipeline and complete order matching are still absent.
+## Deploy and enable
 
-## Deployment
+Upload the extracted root files from this package to the existing private GitHub repository. Netlify expands source.json with unpack.mjs, runs tests, builds dist, and bundles the functions. Keep existing environment variables, encrypted database and OAuth credentials unchanged. Build command: `node unpack.mjs && npm run build`; publish directory: `dist`; Node 24.
 
-The repository transport uses `source.json`, a plain-text map of relative filenames to source contents, plus `unpack.mjs`. The Netlify build expands that map, runs the offline tests, copies only `cloud-public` to `dist`, and bundles the backend functions. This keeps source, tests, Windows launchers, and credentials out of the public web directory. For normal git development, run `node unpack.mjs` and work with the expanded files; rebuild the source map before committing through this transport.
+After deployment, open the main production URL, verify connections and click **Enable automatic replies + emails**. The first enable sets a new live cutoff to now; it does not automatically send responses to older messages. Existing review and draft cutoffs remain unchanged. Resume preserves the live cutoff and scan cursor. Automatic sending defaults OFF on upgrade. Draft monitoring alone never enables sending.
 
-Netlify settings: build `node unpack.mjs && npm run build`, publish `dist`, Node 24. The @netlify/database dependency requests managed Postgres; migration files are expanded before build finishes. Confirm database provisioning and migration success in Netlify before using the app. Existing plan credits/usage apply.
+Netlify's scheduled function runs every five minutes on the published production deployment, with no laptop required. OAuth authorization must remain valid and hosting must remain available. Incoming messages are evaluated as conversations; already staff-answered threads are skipped.
 
-Set production Function environment variables in Netlify:
-- REPLYASSIST_ORIGIN: the exact https origin of the production site, with no path.
-- REPLYASSIST_ENCRYPTION_KEY: 32 cryptographically random bytes encoded as 64 hexadecimal characters. Preserve this key securely; replacing it makes existing encrypted state unreadable.
-- REPLYASSIST_ADMIN_PASSWORD: a unique password at least 24 characters long. This is the private dashboard password. Never commit it.
+## Customer replies
 
-The app fails closed until configured. Redeploy after changing Function environment values. Preview origins cannot authenticate or access the production dashboard.
+- A narrow, explicit pre-purchase question about brand, material, colour, finish or model may receive a direct extractive answer only when the existing strict evidence checks pass. These checks require a single-message conversation, matching seller/item, a complete active single-variant listing, one structured value, and a title/description consisting of consistent structured facts.
+- Other eligible questions receive the standard holding response: “Thank you for contacting VirVentures. Our team will review your query and get back to you within 24–48 hours.” Prior identical holding replies are suppressed.
+- Size, compatibility, ambiguous specifications, order decisions, crucial claims and other unsupported substantive responses require a human-approved reply. No LLM is configured, and the software does not infer arbitrary catalogue answers or modify orders.
+- Order matching is incomplete. Positive stored order matches and explicit post-order wording route to Nazar; otherwise the catalogue owner reviews the classification. Ambiguous questions can therefore require manual reassignment outside the app.
 
-## Architecture and limits
+## Owner notifications — no time-of-day restrictions
 
-API routes require a signed Secure/HttpOnly cookie. POST routes require same-origin JSON and a session-bound CSRF token. Requests are rate-limited at Netlify. All cloud state, including OAuth tokens and conversation evidence, is AES-256-GCM encrypted before persistence. Postgres serializes mutations with a row lock. A transient in-memory SQLite store preserves the original review logic; its state is saved inside the encrypted Postgres record before successful mutation responses.
+Catalogue/general questions: **anangsha.h@virventures.com**.
+Post-order issues: **md.nazar@virventures.com**.
+Sender: **team@virventures.com**.
 
-Long manual checks enqueue authenticated background functions. Internal triggers require a job-bound HMAC. Replayed finished tasks are ignored, and concurrent runs serialize through Postgres. Provider reads have an overall three-minute budget. Status reads use a read-only transaction. This single-record review store is deliberately for bounded validation and is not a scalable production inbox ledger.
+A successful customer send queues a receipt email with the exact reply, customer question, conversation, listing link and status. Holding/suppressed responses also ask the owner to review a substantive response. A successful approved follow-up queues another receipt. Notifications are routed to the responsible owner, not automatically copied to both people. Existing older-message manual sends also queue receipts once the notification workflow is enabled.
 
-Google requires a Web application OAuth client with `https://YOUR-SITE/api/google-callback`, authorized as team@virventures.com. Windows Desktop client JSON and DPAPI files cannot be used here. eBay accepts only Production test 2, with the existing test 2 redirect name; Production Key Set 1 is excluded. Complete a fresh authorization on this cloud instance. No old code or local vault is uploaded.
+Approval emails link to the authenticated dashboard. Replies to emails do NOT approve or send customer messages. Reviewers need authorized access to the existing shared administrator dashboard; per-person identity/role enforcement is not implemented. The responsible reviewer loads current conversation/listing evidence, enters the exact response, attests its accuracy and confirms sending. Approval drafts expire after 15 minutes. Changed conversation/listing evidence blocks dispatch. The confirmed holding message from that same job is the only staff reply excluded when checking whether its substantive follow-up is still eligible.
 
-Sequence: configure host secrets, sign in, authorize providers, verify current seller/listing and Gmail, establish immutable cutoff, check message access, run bounded dry run. Only the first 24 hours after that cutoff are eligible; at most 10 conversations per run. This is a validation sample, not ongoing coverage. Preserve the original Windows ledger separately. Unknown historical sends remain unresolved, and all proposals require recovery review.
+## Reliability and pause controls
 
-## Validation status
+Customer and email reservations commit to encrypted Postgres before external dispatch. Reservations, unknown outcomes and approved attempts are not blindly retried. An uncertain customer send or email delivery pauses automatic replies. Inspect eBay Sent, Gmail Sent and dashboard logs; manual reconciliation remains necessary. A stable email Message-ID helps investigation but is not treated as provider-side idempotency. No exactly-once guarantee is claimed.
 
-60 offline tests pass, including eight cloud-specific tests. These test session expiry/tampering/password rotation, CSRF/origin checks, encryption integrity, state roundtrip/proposal deduplication, route locks, credential restrictions, body limits and fail-closed configuration. No live Postgres transaction, Netlify deployment, browser session, OAuth or provider read has yet been validated. Do not claim automatic operation until those connected checks are complete.
+After an interrupted customer send remains reserved for ten minutes, a later worker marks it uncertain, queues an alert, and pauses automatic replies. Interrupted email reservations remain visible and block further automatic replies. If Gmail is unavailable, an email cannot report its own failure; the dashboard log is authoritative. Notification emails may run on the next five-minute tick, including after manual sends. Already queued notifications continue when customer replies are paused.
 
-## Older conversations: manual approval only
+Pause automatic replies prevents new automated dispatches once the setting is observed; an external request already in flight cannot be recalled. Pause scheduled checks stops subsequent scans. There is no atomic compare-and-send operation at eBay, so avoid simultaneous staff replies to the same conversation.
 
-After deployment, verify connections again. In Older conversations, select a start time covering the customer message (each search covers at most 24 hours within the last 30 days, capped at 10 conversations). Open a result and review the full conversation and current listing. The latest customer message must predate the immutable cutoff and must not already have a staff reply.
+The scanner fetches up to 1,000 summaries for a fixed window, saves that batch, and reviews ten conversations per scheduled invocation. It advances the cursor only after the saved batch is processed. Each new window advances at most one hour with a ten-minute overlap. Failed/incomplete scans pause without advancing. Larger windows exceeding the pagination cap require intervention; sustained traffic can create backlog. Indexing delays beyond the overlap may be missed. This is bounded polling, not a guarantee of exhaustive real-time coverage. Dashboard status displays remaining batch progress and failures.
 
-Drafts expire after 15 minutes. Product claims require listing evidence and explicit human verification. Without verified listing evidence only the fixed holding response is permitted. Tick approval and confirm the exact text to send one reply. No internal email is sent; arrange staff follow-up separately.
+## Security and configuration
 
-A durable reservation is committed before dispatch. Sent, blocked, reserved and unknown attempts cannot automatically retry. Check eBay Sent messages for uncertain outcomes. Avoid replying simultaneously from another tab or device: eBay does not provide an atomic check-and-send operation.
+Only pinned Production test 2 eBay credentials are permitted. Production Key Set 1 remains excluded. API mutations require administrator authentication, exact production origin and CSRF protection. Approval tokens are session-bound. Background tasks require job-bound HMAC signatures. All cloud state, credentials, drafts, send ledgers and notifications are encrypted in Postgres. Public dist contains only browser assets. This package includes no credentials, customer data or database.
 
-This update has passed offline mock tests; the new manual flow has not been validated against live eBay messages or a live send. It does not implement AI-generated answers, continuous monitoring or complete historical inbox processing. Existing credentials, encryption key and cutoff should be preserved.
+Preserve REPLYASSIST_ORIGIN, REPLYASSIST_ENCRYPTION_KEY (64 hex characters), and REPLYASSIST_ADMIN_PASSWORD (at least 24 characters). Replacing the encryption key loses access to existing encrypted state. Gmail uses a Web application client and /api/google-callback at the production origin.
 
-## Scheduled draft checks (28 October 2026)
+## Validation
 
-After deploying this update, verify connections and click Enable / resume draft checks. Netlify runs draft-schedule every five minutes on the published site, which queues the authenticated background worker. Monitoring defaults OFF. It continues without your laptop once deployed and enabled. Pause stops subsequent scans; a scan already holding the database lock may finish before the pause commits.
+72 offline tests pass, including sender/recipient restrictions, 24/7 routing, durable reservations, duplicate suppression across snapshot restart, staff-reply checks, approval/session/changed-evidence rejection, catalogue facts, email uncertainty, interrupted-send recovery and frozen batch progress. The existing legacy engine and generic provider sends remain blocked; new cloud dispatch paths are separate and explicit.
 
-The first enable sets a separate draft cutoff to now; the original review cutoff and credentials remain unchanged. Resume retains the cursor. Each scan covers at most one hour ahead, plus ten minutes of overlap for delayed indexing, and at most ten conversations. The cursor advances only after all returned conversations are evaluated. Provider failure, incomplete history, or truncated results pauses scanning without advancing. A high-volume window may repeatedly truncate: this version needs a pagination enhancement before it can handle that window; resuming alone does not fix it. Indexing delays longer than the overlap may be missed. This is bounded draft validation, not guaranteed full inbox coverage.
-
-Drafts include full conversation and listing evidence, staff-reply suppression, durable deduplication, and prior-send checks. Missing listing facts produce a holding draft for human review. A limited extractive fact candidate can appear separately; it is never eligible for dispatch. No LLM is configured, complete order matching remains absent, and no customer replies or internal emails are sent by the scheduler. Existing manually approved older-message sends remain available. New scheduled drafts have no send action.
-
-Offline tests: 60 passed. Scheduled live execution and real new-message evidence still require validation after deployment. Inspect Scheduled draft checks for lastRun, cursor, enabled, and errors. Existing provider authorization is reused.
+The user reported the earlier manual reply build working. This new automatic/customer-email workflow has NOT been deployed or validated live by Codex. After deployment, verify a controlled new conversation, owner receipt, approval path, scheduled execution and pause control before relying on unattended operation.

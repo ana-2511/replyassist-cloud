@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test test/policy.test.js test/security.test.js test/review-lock.test.js test/review-run.test.js test/session.test.js test/cloud.test.js test/manual-review.test.js test/draft-monitor.test.js",
+    "test": "node --test test/policy.test.js test/security.test.js test/review-lock.test.js test/review-run.test.js test/session.test.js test/cloud.test.js test/manual-review.test.js test/draft-monitor.test.js test/live.test.js",
     "build": "npm test && node scripts/build.mjs",
     "test:cloud": "node --test test/cloud.test.js"
   },

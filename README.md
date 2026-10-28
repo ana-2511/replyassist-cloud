@@ -1,7 +1,7 @@
 # ReplyAssist Cloud Review
 
 This is a Netlify adaptation of the uploaded review build, not a live response service.
-Automatic customer replies, Gmail sends, continuous monitoring and activation remain blocked. A separate manual flow allows one explicitly approved reply to an older conversation. The grounded AI pipeline and complete order matching are still absent.
+Automatic customer replies, Gmail sends and live activation remain blocked. Optional scheduled draft-only checks are available. A separate manual flow allows one explicitly approved reply to an older conversation. The grounded AI pipeline and complete order matching are still absent.
 
 ## Deployment
 
@@ -28,7 +28,7 @@ Sequence: configure host secrets, sign in, authorize providers, verify current s
 
 ## Validation status
 
-54 offline tests pass, including eight cloud-specific tests. These test session expiry/tampering/password rotation, CSRF/origin checks, encryption integrity, state roundtrip/proposal deduplication, route locks, credential restrictions, body limits and fail-closed configuration. No live Postgres transaction, Netlify deployment, browser session, OAuth or provider read has yet been validated. Do not claim automatic operation until those connected checks are complete.
+60 offline tests pass, including eight cloud-specific tests. These test session expiry/tampering/password rotation, CSRF/origin checks, encryption integrity, state roundtrip/proposal deduplication, route locks, credential restrictions, body limits and fail-closed configuration. No live Postgres transaction, Netlify deployment, browser session, OAuth or provider read has yet been validated. Do not claim automatic operation until those connected checks are complete.
 
 ## Older conversations: manual approval only
 
@@ -39,3 +39,13 @@ Drafts expire after 15 minutes. Product claims require listing evidence and expl
 A durable reservation is committed before dispatch. Sent, blocked, reserved and unknown attempts cannot automatically retry. Check eBay Sent messages for uncertain outcomes. Avoid replying simultaneously from another tab or device: eBay does not provide an atomic check-and-send operation.
 
 This update has passed offline mock tests; the new manual flow has not been validated against live eBay messages or a live send. It does not implement AI-generated answers, continuous monitoring or complete historical inbox processing. Existing credentials, encryption key and cutoff should be preserved.
+
+## Scheduled draft checks (28 October 2026)
+
+After deploying this update, verify connections and click Enable / resume draft checks. Netlify runs draft-schedule every five minutes on the published site, which queues the authenticated background worker. Monitoring defaults OFF. It continues without your laptop once deployed and enabled. Pause stops subsequent scans; a scan already holding the database lock may finish before the pause commits.
+
+The first enable sets a separate draft cutoff to now; the original review cutoff and credentials remain unchanged. Resume retains the cursor. Each scan covers at most one hour ahead, plus ten minutes of overlap for delayed indexing, and at most ten conversations. The cursor advances only after all returned conversations are evaluated. Provider failure, incomplete history, or truncated results pauses scanning without advancing. A high-volume window may repeatedly truncate: this version needs a pagination enhancement before it can handle that window; resuming alone does not fix it. Indexing delays longer than the overlap may be missed. This is bounded draft validation, not guaranteed full inbox coverage.
+
+Drafts include full conversation and listing evidence, staff-reply suppression, durable deduplication, and prior-send checks. Missing listing facts produce a holding draft for human review. A limited extractive fact candidate can appear separately; it is never eligible for dispatch. No LLM is configured, complete order matching remains absent, and no customer replies or internal emails are sent by the scheduler. Existing manually approved older-message sends remain available. New scheduled drafts have no send action.
+
+Offline tests: 60 passed. Scheduled live execution and real new-message evidence still require validation after deployment. Inspect Scheduled draft checks for lastRun, cursor, enabled, and errors. Existing provider authorization is reused.

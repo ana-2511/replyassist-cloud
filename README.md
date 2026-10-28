@@ -1,7 +1,7 @@
 # ReplyAssist Cloud Review
 
 This is a Netlify adaptation of the uploaded review build, not a live response service.
-Customer replies, Gmail sends, continuous monitoring and activation remain blocked at the provider and application boundaries. The grounded AI pipeline and complete order matching are still absent.
+Automatic customer replies, Gmail sends, continuous monitoring and activation remain blocked. A separate manual flow allows one explicitly approved reply to an older conversation. The grounded AI pipeline and complete order matching are still absent.
 
 ## Deployment
 
@@ -28,4 +28,14 @@ Sequence: configure host secrets, sign in, authorize providers, verify current s
 
 ## Validation status
 
-45 offline tests pass, including eight cloud-specific tests. These test session expiry/tampering/password rotation, CSRF/origin checks, encryption integrity, state roundtrip/proposal deduplication, route locks, credential restrictions, body limits and fail-closed configuration. No live Postgres transaction, Netlify deployment, browser session, OAuth or provider read has yet been validated. Do not claim automatic operation until those connected checks are complete.
+54 offline tests pass, including eight cloud-specific tests. These test session expiry/tampering/password rotation, CSRF/origin checks, encryption integrity, state roundtrip/proposal deduplication, route locks, credential restrictions, body limits and fail-closed configuration. No live Postgres transaction, Netlify deployment, browser session, OAuth or provider read has yet been validated. Do not claim automatic operation until those connected checks are complete.
+
+## Older conversations: manual approval only
+
+After deployment, verify connections again. In Older conversations, select a start time covering the customer message (each search covers at most 24 hours within the last 30 days, capped at 10 conversations). Open a result and review the full conversation and current listing. The latest customer message must predate the immutable cutoff and must not already have a staff reply.
+
+Drafts expire after 15 minutes. Product claims require listing evidence and explicit human verification. Without verified listing evidence only the fixed holding response is permitted. Tick approval and confirm the exact text to send one reply. No internal email is sent; arrange staff follow-up separately.
+
+A durable reservation is committed before dispatch. Sent, blocked, reserved and unknown attempts cannot automatically retry. Check eBay Sent messages for uncertain outcomes. Avoid replying simultaneously from another tab or device: eBay does not provide an atomic check-and-send operation.
+
+This update has passed offline mock tests; the new manual flow has not been validated against live eBay messages or a live send. It does not implement AI-generated answers, continuous monitoring or complete historical inbox processing. Existing credentials, encryption key and cutoff should be preserved.

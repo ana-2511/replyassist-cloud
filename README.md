@@ -12,7 +12,7 @@ Netlify's scheduled function runs every five minutes on the published production
 
 - A narrow, explicit pre-purchase question about brand, material, colour, finish or model may receive a direct extractive answer only when the existing strict evidence checks pass. These checks require a single-message conversation, matching seller/item, a complete active single-variant listing, one structured value, and a title/description consisting of consistent structured facts.
 - Other eligible questions receive the standard holding response: “Thank you for contacting VirVentures. Our team will review your query and get back to you within 24–48 hours.” Prior identical holding replies are suppressed.
-- Size, compatibility, ambiguous specifications, order decisions, crucial claims and other unsupported substantive responses require a human-approved reply. No LLM is configured, and the software does not infer arbitrary catalogue answers or modify orders.
+- Size, compatibility, ambiguous specifications, order decisions, crucial claims and other unsupported substantive responses require a human-approved reply. Optional AI rewriting from staff-confirmed facts is available in the reply-writing bot. It never automatically dispatches a generated response and does not modify orders.
 - Order matching is incomplete. Positive stored order matches and explicit post-order wording route to Nazar; otherwise the catalogue owner reviews the classification. Ambiguous questions can therefore require manual reassignment outside the app.
 
 ## Owner notifications — no time-of-day restrictions
@@ -43,6 +43,24 @@ Preserve REPLYASSIST_ORIGIN, REPLYASSIST_ENCRYPTION_KEY (64 hex characters), and
 
 ## Validation
 
-72 offline tests pass, including sender/recipient restrictions, 24/7 routing, durable reservations, duplicate suppression across snapshot restart, staff-reply checks, approval/session/changed-evidence rejection, catalogue facts, email uncertainty, interrupted-send recovery and frozen batch progress. The existing legacy engine and generic provider sends remain blocked; new cloud dispatch paths are separate and explicit.
+79 offline tests pass, including sender/recipient restrictions, 24/7 routing, durable reservations, duplicate suppression across snapshot restart, staff-reply checks, approval/session/changed-evidence rejection, catalogue facts, email uncertainty, interrupted-send recovery and frozen batch progress. The existing legacy engine and generic provider sends remain blocked; new cloud dispatch paths are separate and explicit.
 
 The user reported the earlier manual reply build working. This new automatic/customer-email workflow has NOT been deployed or validated live by Codex. After deployment, verify a controlled new conversation, owner receipt, approval path, scheduled execution and pause control before relying on unattended operation.
+
+## Reply-writing bot update — 29 October 2026
+
+After deploying the update, open an unresolved automatic holding reply or a previously sent manual holding reply using **Open reply-writing bot**. This also supports older manual jobs by recovering their saved conversation reference. If the historic record has no listing reference, listing evidence may be absent: verify the exact product from your vendor source.
+
+1. In Netlify Production environment variables, Functions scope, add `OPENAI_API_KEY` with your OpenAI API key. API billing and model access must be available. Do not replace the existing ReplyAssist encryption key, administrator password or OAuth secrets.
+2. Optionally set `REPLYASSIST_AI_MODEL`; default is `gpt-4o-mini`. Redeploy after changing environment variables. No key is included in this package.
+3. Open the relevant conversation in the bot. Enter the exact product/model, a vendor/source reference and date, and the confirmed facts in English or Hindi.
+4. Resolve units and product conflicts explicitly. For the Chevy example, 6.5 inches is different from 6.5 feet; the earlier listing described running boards rather than a truck bed. The bot must not silently convert or assume availability.
+5. Generate a draft. If clarification is requested, correct the facts and regenerate. Review every factual claim, then approve the exact text to send. The app rechecks conversation/listing changes before dispatch.
+
+The AI receives the staff facts and conversation/listing context, not OAuth tokens or application secrets. Responses use structured output and `store:false`. It has no tools and cannot send messages. Unsupported source excerpts, new numeric values and changed measurement units are rejected. These guards are not a complete semantic proof: a human must still review the wording and product identity. There is no email-instruction ingestion in this version; replying to notification emails does not draft or approve a customer response.
+
+Each successful approved reply queues its owner notification through the existing durable outbox. Delivery health now separates pending, accepted and uncertain emails. **Check uncertain email outcomes** searches Gmail Sent for the existing stable Message-ID without resending; no match does not prove the original was unsent. It checks up to five attempts older than ten minutes. A recovered match does not silently restart paused automatic replies.
+
+Status investigation on 29 October: the connected team@virventures.com mailbox search found only the two ReplyAssist receipts from 28 October (15:45 and 15:50 IST), and no later matches. The live dashboard was inaccessible through the browser connection, so the current cause of missing subsequent notifications is not established. The delivery-health update improves diagnostics; it is not evidence that the live failure is fixed.
+
+Validation: 79 offline tests passed, including mocked AI schema, refusal/incomplete output, session/expiry, unit/number/source guards, legacy manual holding follow-up and read-only email reconciliation. Live model quality and the new UI must be validated after deployment. No live customer messages or emails were sent during implementation.

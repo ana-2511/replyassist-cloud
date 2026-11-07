@@ -17,9 +17,9 @@ Netlify's scheduled function runs every five minutes on the published production
 
 ## Owner notifications — no time-of-day restrictions
 
-Catalogue/general questions: **anangsha.h@virventures.com**.
-Post-order issues: **md.nazar@virventures.com**.
-Sender: **team@virventures.com**.
+Catalogue/general questions: **anangsha.h@vir*******.com**.
+Post-order issues: **md.nazar@vir*******.com**.
+Sender: **team@vi********.com**.
 
 A successful customer send queues a receipt email with the exact reply, customer question, conversation, listing link and status. Holding/suppressed responses also ask the owner to review a substantive response. A successful approved follow-up queues another receipt. Notifications are routed to the responsible owner, not automatically copied to both people. Existing older-message manual sends also queue receipts once the notification workflow is enabled.
 
